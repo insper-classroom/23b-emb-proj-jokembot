@@ -18,24 +18,79 @@ class SerialControllerInterface:
         self.incoming = '0'
         pyautogui.PAUSE = 0
         self.game = game
+        self.handshake = False
+        
 
     def update(self):
-        while self.incoming != b'X':
+
+        while self.incoming != b'H' and self.handshake == False:
+            self.ser.write('H'.encode('ascii'))
+            logging.debug("Enviando handshake")
+            self.incoming = self.ser.read()
+            logging.debug("Received INCOMING hs: {}".format(self.incoming))
+            
+            if self.incoming == b'H':
+                logging.debug("handshake!!!")
+                self.handshake = True
+               
+        
+        if self.incoming == b'H':
+                logging.debug("handshake!!!")
+                self.game.toggle_game_state()
+                self.handshake = True 
+                
+
+        while self.incoming != b'X' and self.handshake == True:
             self.incoming = self.ser.read()
             logging.debug("Received INCOMING: {}".format(self.incoming))
 
         data = self.ser.read()
         logging.debug("Received DATA: {}".format(data))
 
-        self.ser.write('hello'.encode('ascii'))
-
         if data == b'1':
             logging.info("KEYDOWN SPACE")
-            self.game.toggle_game_state()
+            self.game.toggle_game_state(jogadas = 0)
             pyautogui.keyDown(self.mapping.button['SPACE'])
         elif data == b'0':
             logging.info("KEYUP SPACE")
             pyautogui.keyUp(self.mapping.button['SPACE'])
+        elif data == b'I':
+            logging.info("KEYDOWN I")
+            self.game.toggle_game_state(jogadas = 1)
+            pyautogui.keyDown(self.mapping.button['I'])
+        elif data == b'2':
+            logging.info("KEYDOWN 2")
+            self.game.toggle_game_state(jogadas = 2)
+            pyautogui.keyDown(self.mapping.button['2'])
+        elif data == b'3':
+            logging.info("KEYDOWN 3")
+            self.game.toggle_game_state(jogadas = 3)
+            pyautogui.keyDown(self.mapping.button['3'])
+        elif data == b'4':
+            logging.info("KEYDOWN 4")
+            self.game.toggle_game_state(jogadas = 4)
+            pyautogui.keyDown(self.mapping.button['4'])
+        elif data == b'5':
+            logging.info("KEYDOWN 5")
+            self.game.toggle_game_state(jogadas = 5)
+            pyautogui.keyDown(self.mapping.button['5'])
+        elif data == b'6':
+            logging.info("KEYDOWN 6")
+            self.game.toggle_game_state(jogadas = 6)
+            pyautogui.keyDown(self.mapping.button['6'])
+        elif data == b'7':
+            logging.info("KEYDOWN 7")
+            self.game.toggle_game_state(jogadas = 7)
+            pyautogui.keyDown(self.mapping.button['7'])
+        elif data == b'8':
+            logging.info("KEYDOWN 8")
+            self.game.toggle_game_state(jogadas = 8)
+            pyautogui.keyDown(self.mapping.button['8'])
+        elif data == b'9':
+            logging.info("KEYDOWN 9")
+            self.game.toggle_game_state(jogadas = 9)
+            pyautogui.keyDown(self.mapping.button['9'])
+
 
         self.incoming = self.ser.read()
 
@@ -57,6 +112,7 @@ def check_for_exit():
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 return True
+        
     return False
 
 class Jokembot:
@@ -89,6 +145,7 @@ class Jokembot:
         self.window = pygame.display.set_mode((self.largura, self.altura))
         pygame.display.set_caption('Jokembot')
 
+
     def telaconfiguracaoinicial(self):
         self.fundo_inicial = pygame.transform.scale(pygame.image.load('imagens/jokembot.png').convert_alpha(), (self.largura, self.altura))
         self.window.fill((0, 0, 0))
@@ -99,9 +156,8 @@ class Jokembot:
         self.window.blit(self.texto_inicial, (250, 400))
         pygame.display.flip()
 
-    def teladejogo(self):
+    def teladejogo(self, jogadas):
         
-
         self.window.fill((0, 0, 0))
         pygame.draw.rect(self.window, self.grey , self.pedra_button)
         pygame.draw.rect(self.window, self.yellow, self.papel_button)
@@ -113,16 +169,28 @@ class Jokembot:
 
         pygame.display.flip()
         
+    def teladejogadas(self):
+        self.window.fill((0, 0, 0))
+        self.text_jogadas = self.font.render("Quantas vezes você quer jogar?", True, self.white)
+        self.window.blit(self.text_jogadas, (250, 400))
+        pygame.display.flip()
 
-    def toggle_game_state(self):
+    def toggle_game_state(self, jogadas):
         if self.game_state == 0:
             pygame.init()
             self.telaconfiguracaoinicial()
             print("Mostrando tela inicial!")
             self.game_state = 1
+
         elif self.game_state == 1:
-            self.teladejogo()
+            self.teladejogadas()
+            print("Mostrando tela de jogadas!")
+            self.game_state = 2
+        
+        elif self.game_state == 2:
+            self.teladejogo(jogadas = jogadas)
             print("Mostrando tela de jogo!")
+            self.game_state = 3
             
             
 
