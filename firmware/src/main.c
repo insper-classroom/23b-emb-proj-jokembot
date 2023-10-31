@@ -22,8 +22,44 @@
 // Botão
 #define BUT_PIO      PIOA
 #define BUT_PIO_ID   ID_PIOA
-#define BUT_IDX      11
+#define BUT_IDX      13
 #define BUT_IDX_MASK (1 << BUT_IDX)
+
+//Teclado Matricial
+#define KEY_LIN_1      PIOC
+#define KEY_LIN_1_ID   ID_PIOC
+#define KEY_LIN_1_IDX      13
+#define KEY_LIN_1_IDX_MASK (1 << KEY_LIN_1_IDX)
+
+#define KEY_LIN_2      PIOD
+#define KEY_LIN_2_ID   ID_PIOD
+#define KEY_LIN_2_IDX      11
+#define KEY_LIN_2_IDX_MASK (1 << KEY_LIN_2_IDX)
+
+#define KEY_LIN_3      PIOD
+#define KEY_LIN_3_ID   ID_PIOD
+#define KEY_LIN_3_IDX      26
+#define KEY_LIN_3_IDX_MASK (1 << KEY_LIN_3_IDX)
+
+#define KEY_LIN_4      PIOA
+#define KEY_LIN_4_ID   ID_PIOA
+#define KEY_LIN_4_IDX      24
+#define KEY_LIN_4_IDX_MASK (1 << KEY_LIN_4_IDX)
+
+#define KEY_COL_1      PIOA
+#define KEY_COL_1_ID   ID_PIOA
+#define KEY_COL_1_IDX      4
+#define KEY_COL_1_IDX_MASK (1 << KEY_COL_1_IDX)
+
+#define KEY_COL_2      PIOB
+#define KEY_COL_2_ID   ID_PIOB
+#define KEY_COL_2_IDX      4
+#define KEY_COL_2_IDX_MASK (1 << KEY_COL_2_IDX)
+
+#define KEY_COL_3      PIOD
+#define KEY_COL_3_ID   ID_PIOD
+#define KEY_COL_3_IDX      21
+#define KEY_COL_3_IDX_MASK (1 << KEY_COL_3_IDX)
 
 // usart (bluetooth ou serial)
 // Descomente para enviar dados
@@ -45,6 +81,9 @@
 
 #define TASK_BLUETOOTH_STACK_SIZE            (4096/sizeof(portSTACK_TYPE))
 #define TASK_BLUETOOTH_STACK_PRIORITY        (tskIDLE_PRIORITY)
+
+#define TASK_TECLADO_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_TECLADO_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
 /************************************************************************/
 /* prototypes                                                           */
@@ -68,6 +107,15 @@ extern void xPortSysTickHandler(void);
 /************************************************************************/
 /* RTOS application HOOK                                                */
 /************************************************************************/
+SemaphoreHandle_t xSemaphoreStart;
+QueueHandle_t xQueueTeclado;
+
+/************************************************************************/
+/* prototypes 2                                                         */
+/************************************************************************/
+void start_callback(void);
+void keypad_init();
+char le_keypad();
 
 /* Called if stack overflow during execution */
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,
@@ -103,11 +151,16 @@ extern void vApplicationMallocFailedHook(void) {
 /* handlers / callbacks                                                 */
 /************************************************************************/
 
+void start_callback(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR(xSemaphoreStart, xHigherPriorityTaskWoken);
+}
+
 /************************************************************************/
 /* funcoes                                                              */
 /************************************************************************/
 
-void io_init(void) {
+void BUT_init(void) {
 
 	// Ativa PIOs
 	pmc_enable_periph_clk(LED_PIO_ID);
@@ -116,7 +169,47 @@ void io_init(void) {
 	// Configura Pinos
 	pio_configure(LED_PIO, PIO_OUTPUT_0, LED_IDX_MASK, PIO_DEFAULT | PIO_DEBOUNCE);
 	pio_configure(BUT_PIO, PIO_INPUT, BUT_IDX_MASK, PIO_PULLUP);
+	
+	pio_handler_set(BUT_PIO,
+	BUT_PIO_ID,
+	BUT_IDX_MASK,
+	PIO_IT_FALL_EDGE,
+	start_callback);
+	
+	pio_enable_interrupt(BUT_PIO, BUT_IDX_MASK);
+	pio_get_interrupt_status(BUT_PIO);
+	NVIC_EnableIRQ(BUT_PIO_ID);
+	NVIC_SetPriority(BUT_PIO_ID, 4);
 }
+
+
+void keypad_init()
+{
+	
+	pmc_enable_periph_clk(KEY_LIN_1_ID);
+	pio_set_output(KEY_LIN_1, KEY_LIN_1_IDX_MASK, 1, 0, 0);
+	
+	pmc_enable_periph_clk(KEY_LIN_2_ID);
+	pio_set_output(KEY_LIN_2, KEY_LIN_2_IDX_MASK, 1, 0, 0);
+	
+	pmc_enable_periph_clk(KEY_LIN_3_ID);
+	pio_set_output(KEY_LIN_3, KEY_LIN_3_IDX_MASK, 1, 0, 0);
+	
+	pmc_enable_periph_clk(KEY_LIN_4_ID);
+	pio_set_output(KEY_LIN_4, KEY_LIN_4_IDX_MASK, 1, 0, 0);
+
+	
+	pmc_enable_periph_clk(KEY_COL_1_ID);
+	pio_set_input(KEY_COL_1, KEY_COL_1_IDX_MASK, PIO_PULLUP);
+	
+	pmc_enable_periph_clk(KEY_COL_2_ID);
+	pio_set_input(KEY_COL_2, KEY_COL_2_IDX_MASK, PIO_PULLUP);
+	
+	pmc_enable_periph_clk(KEY_COL_3_ID);
+	pio_set_input(KEY_COL_3, KEY_COL_3_IDX_MASK, PIO_PULLUP);
+	
+}
+
 
 static void configure_console(void) {
 	const usart_serial_options_t uart_serial_options = {
@@ -201,11 +294,165 @@ int hc05_init(void) {
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
 	usart_send_command(USART_COM, buffer_rx, 1000, "AT", 100);
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
-	usart_send_command(USART_COM, buffer_rx, 1000, "AT+NAMEagoravai", 100);
+	usart_send_command(USART_COM, buffer_rx, 1000, "AT+NAMELuana", 100);
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
 	usart_send_command(USART_COM, buffer_rx, 1000, "AT", 100);
 	vTaskDelay( 500 / portTICK_PERIOD_MS);
 	usart_send_command(USART_COM, buffer_rx, 1000, "AT+PIN0000", 100);
+	vTaskDelay( 500 / portTICK_PERIOD_MS);
+}
+
+char le_keypad()
+{
+	char lido = '\0';
+	
+	pio_clear(KEY_LIN_1, KEY_LIN_1_IDX_MASK);
+	pio_set(KEY_LIN_2, KEY_LIN_2_IDX_MASK);
+	pio_set(KEY_LIN_3, KEY_LIN_3_IDX_MASK);
+	pio_set(KEY_LIN_4, KEY_LIN_4_IDX_MASK);
+
+	if(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '1';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '2';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '3';
+		delay_ms(20);
+	}
+
+
+
+	pio_set(KEY_LIN_1, KEY_LIN_1_IDX_MASK);
+	pio_clear(KEY_LIN_2, KEY_LIN_2_IDX_MASK);
+	pio_set(KEY_LIN_3, KEY_LIN_3_IDX_MASK);
+	pio_set(KEY_LIN_4, KEY_LIN_4_IDX_MASK);
+
+	if(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '4';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '5';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '6';
+		delay_ms(20);
+	}
+
+
+	pio_set(KEY_LIN_1, KEY_LIN_1_IDX_MASK);
+	pio_set(KEY_LIN_2, KEY_LIN_2_IDX_MASK);
+	pio_clear(KEY_LIN_3, KEY_LIN_3_IDX_MASK);
+	pio_set(KEY_LIN_4, KEY_LIN_4_IDX_MASK);
+
+	if(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '7';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '8';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '9';
+		delay_ms(20);
+	}
+
+
+
+	pio_set(KEY_LIN_1, KEY_LIN_1_IDX_MASK);
+	pio_set(KEY_LIN_2, KEY_LIN_2_IDX_MASK);
+	pio_set(KEY_LIN_3, KEY_LIN_3_IDX_MASK);
+	pio_clear(KEY_LIN_4, KEY_LIN_4_IDX_MASK);
+
+	if(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_1,PIO_INPUT,KEY_COL_1_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '*';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_2,PIO_INPUT,KEY_COL_2_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '0';
+		delay_ms(20);
+	}
+
+	else if(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+	{
+		while(!(pio_get(KEY_COL_3,PIO_INPUT,KEY_COL_3_IDX_MASK)))
+		{
+			delay_ms(20);
+		}
+		lido = '#';
+		delay_ms(20);
+	}
+
+	return lido;
+
 }
 
 /************************************************************************/
@@ -220,15 +467,16 @@ void task_bluetooth(void) {
 	hc05_init();
 
 	// configura LEDs e Botões
-	io_init();
+	BUT_init();
 
 	char button1 = '0';
 	char eof = 'X';
+	char rodadas;
 
 	// Task não deve retornar.
 	while(1) {
 		// atualiza valor do botão
-		if(pio_get(BUT_PIO, PIO_INPUT, BUT_IDX_MASK) == 0) {
+		if(xSemaphoreTake(xSemaphoreStart, 1000)) {
 			button1 = '1';
 		} else {
 			button1 = '0';
@@ -245,9 +493,27 @@ void task_bluetooth(void) {
 			vTaskDelay(10 / portTICK_PERIOD_MS);
 		}
 		usart_write(USART_COM, eof);
-
+		
+		vTaskDelay(500 / portTICK_PERIOD_MS);
+		
+		if(xQueueReceive( xQueueTeclado, &rodadas, 1000)){
+			usart_write(USART_COM, rodadas);
+		}
 		// dorme por 500 ms
 		vTaskDelay(500 / portTICK_PERIOD_MS);
+	}
+}
+
+void task_teclado (void){
+	
+	keypad_init();
+	char rodadas;
+	
+	for(;;){
+		rodadas = le_keypad();
+		if (rodadas != '\0'){
+			xQueueSend(xQueueTeclado, &rodadas, 1000);
+		}
 	}
 }
 
@@ -261,9 +527,22 @@ int main(void) {
 	board_init();
 
 	configure_console();
+	
+	xSemaphoreStart = xSemaphoreCreateBinary();
+	
+	if (xSemaphoreStart == NULL){
+		printf("falha em criar o semaforo \n");
+	}
+	
+	xQueueTeclado = xQueueCreate(32, sizeof(char));
+	
+	if (xQueueTeclado == NULL){
+		printf("falha em criar a queue \n");
+	}
 
 	/* Create task to make led blink */
 	xTaskCreate(task_bluetooth, "BLT", TASK_BLUETOOTH_STACK_SIZE, NULL,	TASK_BLUETOOTH_STACK_PRIORITY, NULL);
+	xTaskCreate(task_teclado, "tec", TASK_TECLADO_STACK_SIZE, NULL,	TASK_TECLADO_STACK_PRIORITY, NULL);
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
