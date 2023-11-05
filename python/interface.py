@@ -5,6 +5,8 @@ import time
 import logging
 import pygame
 
+pygame.init()
+
 class MyControllerMap:
     def __init__(self):
         self.button = {'SPACE': 'SPACE'}
@@ -24,6 +26,10 @@ class SerialControllerInterface:
 
         data = self.ser.read()
         logging.debug("Received DATA: {}".format(data))
+
+        while self.incoming != b'h':
+            self.ser.write('h'.encode('ascii'))
+        
 
         if data == b'1':
             logging.info("KEYDOWN SPACE")
@@ -57,9 +63,31 @@ def check_for_exit():
 
 class Jokembot:
     def __init__(self):
+
         self.game_state = 0
         self.largura = 1000
         self.altura = 800
+
+        self.grey = (128, 128, 128)
+        self.yellow = (253,255,0)
+        self.red = (200,0,0)
+        self.black = (0,0,0)
+        self.green = (0, 255, 0)
+        self.white = (255, 255, 255)
+
+        self.pedra_button = pygame.Rect(self.largura/4-75, self.altura/2, 150, 50)
+        self.papel_button = pygame.Rect(self.largura/2-75, self.altura/2, 150, 50)
+        self.tesoura_button = pygame.Rect(self.largura-self.largura/4-75, self.altura/2, 150, 50)
+        self.font = pygame.font.Font('freesansbold.ttf', 32)
+        self.texto_inicial = self.font.render('Aperte o botão para jogar', True, self.black)
+        self.pedra_text = self.font.render('Pedra', True, self.black)
+        self.papel_text = self.font.render('Papel', True, self.black)
+        self.tesoura_text = self.font.render('Tesoura', True, self.black)
+        self.win_text = self.font.render('Você venceu', True, self.green)
+        self.tie_text = self.font.render('É um empate', True, self.yellow)
+        self.lose_text = self.font.render('Você perdeu', True, self.red)
+        self.computer_text = self.font.render('', True, self.black)
+
         self.window = pygame.display.set_mode((self.largura, self.altura))
         pygame.display.set_caption('Jokembot')
 
@@ -67,11 +95,26 @@ class Jokembot:
         self.fundo_inicial = pygame.transform.scale(pygame.image.load('imagens/jokembot.png').convert_alpha(), (self.largura, self.altura))
         self.window.fill((0, 0, 0))
         self.window.blit(self.fundo_inicial, (0, 0))
+        self.texto_rect = self.texto_inicial.get_rect(topleft=(250, 400))
+        self.texto_rect.inflate_ip(10*2, 10*2)
+        pygame.draw.rect(self.window, self.white, self.texto_rect)
+        self.window.blit(self.texto_inicial, (250, 400))
         pygame.display.flip()
 
     def teladejogo(self):
+        
+
         self.window.fill((0, 0, 0))
+        pygame.draw.rect(self.window, self.grey , self.pedra_button)
+        pygame.draw.rect(self.window, self.yellow, self.papel_button)
+        pygame.draw.rect(self.window, self.red, self.tesoura_button)
+
+        self.window.blit(self.pedra_text, (self.pedra_button.centerx-40, self.pedra_button.centery-15))
+        self.window.blit(self.papel_text, (self.papel_button.centerx-40, self.papel_button.centery-15))
+        self.window.blit(self.tesoura_text, (self.tesoura_button.centerx-55, self.tesoura_button.centery-15))
+
         pygame.display.flip()
+        
 
     def toggle_game_state(self):
         if self.game_state == 0:
@@ -82,7 +125,9 @@ class Jokembot:
         elif self.game_state == 1:
             self.teladejogo()
             print("Mostrando tela de jogo!")
-            self.game_state = 0
+            
+            
+
 
 
 if __name__ == '__main__':
