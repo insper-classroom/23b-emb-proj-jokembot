@@ -5,11 +5,28 @@ import time
 import logging
 import pygame
 
+
 pygame.init()
 
 class MyControllerMap:
     def __init__(self):
-        self.button = {'SPACE': 'SPACE'}
+        self.button = {
+            'SPACE': 'SPACE',
+            'I': '1',
+            '2': '2',
+            '3': '3',
+            '4': '4',
+            '5': '5',
+            '6': '6',
+            '7': '7',
+            '8': '8',
+            '9': '9', 
+            'R': 'R', 
+            'P': 'P', 
+            'S': 'S'
+        }
+
+
 
 class SerialControllerInterface:
     def __init__(self, port, baudrate, game):
@@ -19,6 +36,8 @@ class SerialControllerInterface:
         pyautogui.PAUSE = 0
         self.game = game
         self.handshake = False
+        self.jogadas = 0
+        self.rps = 'b'
         
 
     def update(self):
@@ -36,7 +55,7 @@ class SerialControllerInterface:
         
         if self.incoming == b'H':
                 logging.debug("handshake!!!")
-                self.game.toggle_game_state()
+                self.game.toggle_game_state(jogadas = 0, rps = self.rps)
                 self.handshake = True 
                 
 
@@ -49,47 +68,69 @@ class SerialControllerInterface:
 
         if data == b'1':
             logging.info("KEYDOWN SPACE")
-            self.game.toggle_game_state(jogadas = 0)
+            self.game.toggle_game_state(jogadas = 0, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['SPACE'])
         elif data == b'0':
             logging.info("KEYUP SPACE")
             pyautogui.keyUp(self.mapping.button['SPACE'])
         elif data == b'I':
             logging.info("KEYDOWN I")
-            self.game.toggle_game_state(jogadas = 1)
-            pyautogui.keyDown(self.mapping.button['I'])
+            self.jogadas = 1
+            self.game.toggle_game_state(jogadas = 1, rps = self.rps)
+            pyautogui.keyDown(self.mapping.button['1'])
         elif data == b'2':
             logging.info("KEYDOWN 2")
-            self.game.toggle_game_state(jogadas = 2)
+            self.jogadas = 2
+            self.game.toggle_game_state(jogadas = 2, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['2'])
         elif data == b'3':
             logging.info("KEYDOWN 3")
-            self.game.toggle_game_state(jogadas = 3)
+            self.jogadas = 3
+            self.game.toggle_game_state(jogadas = 3, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['3'])
         elif data == b'4':
             logging.info("KEYDOWN 4")
-            self.game.toggle_game_state(jogadas = 4)
+            self.jogadas = 4
+            self.game.toggle_game_state(jogadas = 4, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['4'])
         elif data == b'5':
             logging.info("KEYDOWN 5")
-            self.game.toggle_game_state(jogadas = 5)
+            self.jogadas = 5
+            self.game.toggle_game_state(jogadas = 5, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['5'])
         elif data == b'6':
             logging.info("KEYDOWN 6")
-            self.game.toggle_game_state(jogadas = 6)
+            self.jogadas = 6
+            self.game.toggle_game_state(jogadas = 6, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['6'])
         elif data == b'7':
             logging.info("KEYDOWN 7")
-            self.game.toggle_game_state(jogadas = 7)
+            self.jogadas = 7
+            self.game.toggle_game_state(jogadas = 7, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['7'])
         elif data == b'8':
             logging.info("KEYDOWN 8")
-            self.game.toggle_game_state(jogadas = 8)
+            self.jogadas = 8
+            self.game.toggle_game_state(jogadas = 8, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['8'])
         elif data == b'9':
             logging.info("KEYDOWN 9")
-            self.game.toggle_game_state(jogadas = 9)
+            self.jogadas = 9
+            self.game.toggle_game_state(jogadas = 9, rps = self.rps)
             pyautogui.keyDown(self.mapping.button['9'])
+        elif data == b'R':
+            logging.info("KEYDOWN R")
+            self.game.toggle_game_state(jogadas = self.jogadas, rps = 'R')
+            pyautogui.keyDown(self.mapping.button['R'])
+        elif data == b'P':
+            logging.info("KEYDOWN R")
+            self.game.toggle_game_state(jogadas = self.jogadas, rps = 'P')
+            pyautogui.keyDown(self.mapping.button['S'])
+        elif data == b'S':
+            logging.info("KEYDOWN R")
+            self.game.toggle_game_state(jogadas = self.jogadas, rps = 'S')
+            pyautogui.keyDown(self.mapping.button['S'])
+       
 
 
         self.incoming = self.ser.read()
@@ -102,6 +143,51 @@ class DummyControllerInterface:
         pyautogui.keyDown(self.mapping.button['SPACE'])
         time.sleep(0.1)
         pyautogui.keyUp(self.mapping.button['SPACE'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['1'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['1'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['2'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['2'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['3'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['3'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['4'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['4'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['5'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['5'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['6'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['6'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['7'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['7'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['8'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['8'])
+        logging.info("[Dummy] Pressed A button")
+        time.sleep(1)
+        pyautogui.keyDown(self.mapping.button['9'])
+        time.sleep(0.1)
+        pyautogui.keyUp(self.mapping.button['9'])
         logging.info("[Dummy] Pressed A button")
         time.sleep(1)
 
@@ -132,7 +218,8 @@ class Jokembot:
         self.pedra_button = pygame.Rect(self.largura/4-75, self.altura/2, 150, 50)
         self.papel_button = pygame.Rect(self.largura/2-75, self.altura/2, 150, 50)
         self.tesoura_button = pygame.Rect(self.largura-self.largura/4-75, self.altura/2, 150, 50)
-        self.font = pygame.font.Font('freesansbold.ttf', 32)
+        self.font = pygame.font.Font('font/PressStart2P-Regular.ttf', 20)
+        self.font2 = pygame.font.Font('font/PressStart2P-Regular.ttf', 100)
         self.texto_inicial = self.font.render('Aperte o botão para jogar', True, self.black)
         self.pedra_text = self.font.render('Pedra', True, self.black)
         self.papel_text = self.font.render('Papel', True, self.black)
@@ -141,6 +228,10 @@ class Jokembot:
         self.tie_text = self.font.render('É um empate', True, self.yellow)
         self.lose_text = self.font.render('Você perdeu', True, self.red)
         self.computer_text = self.font.render('', True, self.black)
+
+        self.vitorias = 0
+        self.derrotas = 0
+        self.empates = 0
 
         self.window = pygame.display.set_mode((self.largura, self.altura))
         pygame.display.set_caption('Jokembot')
@@ -156,26 +247,119 @@ class Jokembot:
         self.window.blit(self.texto_inicial, (250, 400))
         pygame.display.flip()
 
-    def teladejogo(self, jogadas):
-        
-        self.window.fill((0, 0, 0))
-        pygame.draw.rect(self.window, self.grey , self.pedra_button)
-        pygame.draw.rect(self.window, self.yellow, self.papel_button)
-        pygame.draw.rect(self.window, self.red, self.tesoura_button)
-
-        self.window.blit(self.pedra_text, (self.pedra_button.centerx-40, self.pedra_button.centery-15))
-        self.window.blit(self.papel_text, (self.papel_button.centerx-40, self.papel_button.centery-15))
-        self.window.blit(self.tesoura_text, (self.tesoura_button.centerx-55, self.tesoura_button.centery-15))
-
-        pygame.display.flip()
-        
     def teladejogadas(self):
         self.window.fill((0, 0, 0))
         self.text_jogadas = self.font.render("Quantas vezes você quer jogar?", True, self.white)
         self.window.blit(self.text_jogadas, (250, 400))
         pygame.display.flip()
 
-    def toggle_game_state(self, jogadas):
+    def teladeregras(self, jogadas):
+        self.window.fill((0, 0, 0))
+        self.text_regras = self.font.render("O jogo funciona da seguinte forma:", True, self.white)
+        self.window.blit(self.text_regras, (180, 200))
+        pygame.display.flip()
+        time.sleep(2)
+        self.text_regras2 = self.font.render("Todo começo de rodada voce terá 3", True, self.white)
+        self.window.blit(self.text_regras2, (180, 250))
+        self.text_regras3 = self.font.render("segundos para escolher sua jogada:", True, self.white)
+        self.window.blit(self.text_regras3, (180, 300))
+        pygame.display.flip()
+        time.sleep(2)
+        self.text_regras4 = self.font.render("Pedra, Papel ou Tesoura!", True, self.white)
+        self.window.blit(self.text_regras4, (300, 350))
+        pygame.display.flip()
+        time.sleep(2)
+        self.window.fill((0, 0, 0))
+        self.text_regras5 = self.font.render("Está pronto(a)?", True, self.white)
+        self.window.blit(self.text_regras5, (320, 200))
+        pygame.display.flip()
+        time.sleep(1)
+        self.text_regras6 = self.font.render("Vamos começar em alguns segundos!", True, self.white)
+        self.window.blit(self.text_regras6, (180, 250))
+        pygame.display.flip()
+        time.sleep(2)
+        self.toggle_game_state(jogadas = jogadas, rps = 'b')
+
+    def telaprejogo(self, jogadas):
+
+        self.window.fill((0, 0, 0))
+        self.text_tempo = self.font2.render(f"Jogada {jogadas-jogadas+1}", True, self.white)
+        self.window.blit(self.text_tempo, (100, 200))
+        pygame.display.flip()
+        time.sleep(1)
+
+        self.window.fill((0, 0, 0))
+        self.text_tempo = self.font2.render("3", True, self.white)
+        self.window.blit(self.text_tempo, (450, 350))
+        pygame.display.flip()
+        time.sleep(1)
+
+        self.window.fill((0, 0, 0))
+        self.text_tempo = self.font2.render("2", True, self.white)
+        self.window.blit(self.text_tempo, (450, 350))
+        pygame.display.flip()
+        time.sleep(1)
+
+        self.window.fill((0, 0, 0))
+        self.text_tempo = self.font2.render("1", True, self.white)
+        self.window.blit(self.text_tempo, (450, 350))
+        pygame.display.flip()
+        time.sleep(1)
+
+        self.window.fill((0, 0, 0))
+        pygame.display.flip()
+        
+        
+    def telajogo(self, jogadas, rps):
+        if rps =='R':
+            self.window.fill((0, 0, 0))
+            self.text_tempo = self.font2.render("PAPEL", True, self.white)
+            self.window.blit(self.text_tempo, (450, 350))
+            pygame.display.flip()
+            time.sleep(1)
+        
+        if rps =='P':
+            self.window.fill((0, 0, 0))
+            self.text_tempo = self.font2.render("TESOURA", True, self.white)
+            self.window.blit(self.text_tempo, (450, 350))
+            pygame.display.flip()
+            time.sleep(1)
+        
+        if rps =='S':
+            self.window.fill((0, 0, 0))
+            self.text_tempo = self.font2.render("PEDRA", True, self.white)
+            self.window.blit(self.text_tempo, (450, 350))
+            pygame.display.flip()
+            time.sleep(1)
+        
+        else:
+            self.window.fill((0, 0, 0))
+            self.text_tempo = self.font.render("NÂO RECEBEMOS INFORMAÇÔES :(", True, self.white)
+            self.window.blit(self.text_tempo, (300, 350))
+            pygame.display.flip()
+            time.sleep(1)
+
+        self.toggle_game_state(self, jogadas - 1, rps)
+
+
+    def tela_checagem(self, jogadas, rps):
+        self.window.fill((0, 0, 0))
+        self.text_tempo = self.font.render("Qual foi sua jogada?", True, self.white)
+        self.window.blit(self.text_tempo, (200, 200))
+        pygame.display.flip()
+        time.sleep(1)
+        self.text_tempo = self.font.render("1- Pedra", True, self.white)
+        self.window.blit(self.text_tempo, (400, 250))
+        self.text_tempo = self.font.render("2- Papel", True, self.white)
+        self.window.blit(self.text_tempo, (400, 300))
+        self.text_tempo = self.font.render("3- Tesoura", True, self.white)
+        self.window.blit(self.text_tempo, (400, 350))
+        pygame.display.flip()
+        time.sleep(1)
+
+
+
+    def toggle_game_state(self, jogadas, rps):
         if self.game_state == 0:
             pygame.init()
             self.telaconfiguracaoinicial()
@@ -183,14 +367,36 @@ class Jokembot:
             self.game_state = 1
 
         elif self.game_state == 1:
+            self.game_state = 2
+            self.teladeregras(jogadas = jogadas)
+            print("Mostrando tela de regras!")
+
+        elif self.game_state == 2:
+            self.game_state = 3
             self.teladejogadas()
             print("Mostrando tela de jogadas!")
-            self.game_state = 2
+            
+        elif self.game_state == 3:
+            if jogadas > 0:
+                print("entrei aquiiii")
+                self.game_state = 4
+            else: 
+                self.game_state = 6
+            self.telaprejogo(jogadas = jogadas)
+            print(f"Mostrando tela pré jogo!, jogadas = {jogadas}")
+            
+
+        elif self.game_state == 4:
+            self.telajogo(jogadas = jogadas, rps = rps)
+            print("Mostrando tela do jogo!")
+            if jogadas > 0:
+                self.game_state = 5
+            else:
+                self.game_state = 6
         
-        elif self.game_state == 2:
-            self.teladejogo(jogadas = jogadas)
-            print("Mostrando tela de jogo!")
-            self.game_state = 3
+        elif self.game_state == 5:
+            self.tela_checagem(self, jogadas, rps)
+
             
             
 
