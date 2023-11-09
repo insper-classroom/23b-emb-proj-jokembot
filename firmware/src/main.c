@@ -1,4 +1,30 @@
-/************************************************************************
+
+/************************
+* 5 semestre - Eng. da Computao - Insper
+*
+* 2021 - Exemplo com HC05 com RTOS
+*
+*/
+
+#include <asf.h>
+#include "conf_board.h"
+#include <string.h>
+
+/************************/
+/* defines                                                              */
+/************************/
+
+// LEDs
+#define LED_PIO      PIOC
+#define LED_PIO_ID   ID_PIOC
+#define LED_IDX      8
+#define LED_IDX_MASK (1 << LED_IDX)
+
+// Botão
+#define BUT_PIO      PIOA
+#define BUT_PIO_ID   ID_PIOA
+#define BUT_IDX      13
+#define BUT_IDX_MASK (1 <</************************************************************************
 * 5 semestre - Eng. da Computao - Insper
 *
 * 2021 - Exemplo com HC05 com RTOS
@@ -131,13 +157,13 @@
 /* RTOS                                                                 */
 /************************************************************************/
 
-#define TASK_BLUETOOTH_STACK_SIZE            (4096/sizeof(portSTACK_TYPE))
-#define TASK_BLUETOOTH_STACK_PRIORITY        (tskIDLE_PRIORITY )
+#define TASK_BLUETOOTH_STACK_SIZE            (4096*4/sizeof(portSTACK_TYPE))
+#define TASK_BLUETOOTH_STACK_PRIORITY        (tskIDLE_PRIORITY + 1)
 
-#define TASK_TECLADO_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_TECLADO_STACK_SIZE                (1024*8/sizeof(portSTACK_TYPE))
 #define TASK_TECLADO_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
-#define TASK_LUVA_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_LUVA_STACK_SIZE                (1024*8/sizeof(portSTACK_TYPE))
 #define TASK_LUVA_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
 /************************************************************************/
@@ -164,13 +190,8 @@ extern void xPortSysTickHandler(void);
 /************************************************************************/
 SemaphoreHandle_t xSemaphoreStart;
 QueueHandle_t xQueueTeclado;
-QueueHandle_t xQueueSensor;
 QueueHandle_t xQueueJokempo;
 
-typedef struct {
-	int id;
-	uint8_t value;
-	}dado;
 
 /************************************************************************/
 /* prototypes 2                                                         */
@@ -289,9 +310,7 @@ void ads1015_i2c_bus_init(void)
 int configSensor(uint8_t channel){
 	twihs_packet_t packet_tx;
 	
-	pmc_enable_periph_clk(ID_PIOD);
-	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
-	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 27);
+
 	
 	uint16_t config = ADS1015_CONFIG_OS_SINGLE | ADS1015_CONFIG_MODE_CONT | ADS1015_CONFIG_RATE_1600HZ | ADS1015_CONFIG_PGA_1 | ADS1015_CONFIG_MUX_SINGLE_0;
 	//config |= ADS1015_CONFIG_PGA_2/3;
@@ -335,8 +354,7 @@ int readChannel(uint8_t channel, uint8_t *rvalue){
 	twihs_packet_t packet_tx, packet_rx;
 	char tx[32];
 	char rx[32];
-	dado envio_dado;
-
+	
 	//tx[0] = ADS1015_POINTER_CONFIG;
 	tx[0] = 0;
 	packet_tx.buffer = &tx;
@@ -364,10 +382,6 @@ int readChannel(uint8_t channel, uint8_t *rvalue){
 		printf("Channel%u: ", channel);
 		printf("%d  \r\n", (rx[0] << 8 | rx[1]) >> 4);	
 	}
-	envio_dado.id = channel;
-	envio_dado.value = (rx[0] << 8 | rx[1]) >> 4;
-	BaseType_t xHigherPriorityTaskWoken = pdTRUE;
-	xQueueSendFromISR(xQueueSensor, &envio_dado, &xHigherPriorityTaskWoken);	
 	
 }
 
@@ -657,13 +671,13 @@ void task_bluetooth(void) {
 		}
 		usart_write(USART_COM, eof);
 		
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		vTaskDelay(100 / portTICK_PERIOD_MS);
 		
 		if(xQueueReceive( xQueueTeclado, &rodadas, 1000)){
 			usart_write(USART_COM, rodadas);
 		}
 		// dorme por 500 ms
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		vTaskDelay(100 / portTICK_PERIOD_MS);
 		
 		if(xQueueReceive( xQueueJokempo, &jokempo, 1000)){
 			usart_write(USART_COM, jokempo);
@@ -691,7 +705,11 @@ void task_luva (void){
 	uint8_t bufferTX[100];
 	
 	uint8_t rtn;
-	config_usart0();
+
+	pmc_enable_periph_clk(ID_PIOD);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 27);
+	
 	printf("Inicializando bus i2c \n");
 	ads1015_i2c_bus_init();
 	
@@ -703,35 +721,36 @@ void task_luva (void){
 	
 	configSensor(0);
 	configSensor(1);
-	uint8_t d0, d1;
-	dado envio_dado;
+	
+	uint16_t d0, d1, old_d0, old_d1;
+	
 	char jokempo;
 	
 	
 	for(;;){
+		old_d0 = d0;
+		old_d1 = d1;
+		
 		configSensor(0);
 		readChannel(0, &d0);
-		delay_us(100);
+	
 		
 		//dedo esquerdo
 		configSensor(1);
 		readChannel(1, &d1);
-		delay_ms(100);
 		
-		if( xQueueReceive( xQueueSensor, &envio_dado, ( TickType_t ) 500 )){
-			printf("Chegou na task sensor \n");
-			printf("O dado é %d", envio_dado.value);
-			if (envio_dado.id == 0 && envio_dado.value > 300){
-				if(envio_dado.id == 1 && envio_dado.value>300){
+		if (abs(d0 - old_d0) > 5 || abs(d1 - old_d1) > 5 ){
+			if (d1 > 300){
+				if(d0>300){
 					jokempo = 'R';
 					xQueueSend(xQueueJokempo, &jokempo, 1000);
 				}
 				else{
-					jokempo = 'S';
+					jokempo = 'T';
 					xQueueSend(xQueueJokempo, &jokempo, 1000);
 				}
 			}
-			else if (envio_dado.id == 0 && envio_dado.value == 261){
+			else{
 				jokempo = 'P';
 				xQueueSend(xQueueJokempo, &jokempo, 1000);
 			}
@@ -747,6 +766,10 @@ int main(void) {
 	/* Initialize the SAM system */
 	sysclk_init();
 	board_init();
+	
+	pmc_enable_periph_clk(ID_PIOD);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 27);
 
 	configure_console();
 	
@@ -762,11 +785,6 @@ int main(void) {
 		printf("falha em criar a queue \n");
 	}
 	
-	xQueueSensor = xQueueCreate(32, sizeof(dado));
-	
-	if (xQueueSensor == NULL){
-		printf("falha em criar a queue \n");
-	}
 	
 	xQueueJokempo = xQueueCreate(32, sizeof(char));
 	

@@ -326,7 +326,7 @@
     <com_atmel_avrdbg_tool_edbg>
       <ToolOptions>
         <InterfaceProperties>
-          <SwdClock>1700000</SwdClock>
+          <SwdClock>2000000</SwdClock>
         </InterfaceProperties>
         <InterfaceName>SWD</InterfaceName>
       </ToolOptions>
@@ -334,7 +334,18 @@
       <ToolNumber>ATML2637010000000000</ToolNumber>
       <ToolName>EDBG</ToolName>
     </com_atmel_avrdbg_tool_edbg>
-    <avrtoolinterfaceclock>1700000</avrtoolinterfaceclock>
+    <avrtoolinterfaceclock>2000000</avrtoolinterfaceclock>
+    <custom>
+      <ToolOptions xmlns="">
+        <InterfaceProperties>
+        </InterfaceProperties>
+        <InterfaceName>SWD</InterfaceName>
+      </ToolOptions>
+      <ToolType xmlns="">custom</ToolType>
+      <ToolNumber xmlns="">
+      </ToolNumber>
+      <ToolName xmlns="">Custom Programming Tool</ToolName>
+    </custom>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <ToolchainSettings>
@@ -702,6 +713,9 @@
     <Folder Include="src\config\" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src\mcu6050.h">
+      <SubType>compile</SubType>
+    </Compile>
     <None Include="src\asf.h">
       <SubType>compile</SubType>
     </None>
@@ -1285,6 +1299,18 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\ASF\sam\utils\syscalls\gcc\syscalls.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\thirdparty\CMSIS\Include\cmsis_compiler.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\thirdparty\CMSIS\Include\cmsis_gcc.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\thirdparty\CMSIS\Include\cmsis_version.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="src\ASF\thirdparty\CMSIS\Include\mpu_armv7.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\ASF\thirdparty\freertos\freertos-8.2.3\Source\croutine.c">
