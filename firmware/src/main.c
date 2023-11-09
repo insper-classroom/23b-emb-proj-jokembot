@@ -1,4 +1,5 @@
-/************************************************************************
+
+/************************
 * 5 semestre - Eng. da Computao - Insper
 *
 * 2021 - Exemplo com HC05 com RTOS
@@ -8,6 +9,32 @@
 #include <asf.h>
 #include "conf_board.h"
 #include <string.h>
+
+/************************/
+/* defines                                                              */
+/************************/
+
+// LEDs
+#define LED_PIO      PIOC
+#define LED_PIO_ID   ID_PIOC
+#define LED_IDX      8
+#define LED_IDX_MASK (1 << LED_IDX)
+
+// Botão
+#define BUT_PIO      PIOA
+#define BUT_PIO_ID   ID_PIOA
+#define BUT_IDX      13
+#define BUT_IDX_MASK (1 <</************************************************************************
+* 5 semestre - Eng. da Computao - Insper
+*
+* 2021 - Exemplo com HC05 com RTOS
+*
+*/
+
+#include <asf.h>
+#include "conf_board.h"
+#include <string.h>
+#include "mcu6050.h"
 
 /************************************************************************/
 /* defines                                                              */
@@ -61,6 +88,57 @@
 #define KEY_COL_3_IDX      21
 #define KEY_COL_3_IDX_MASK (1 << KEY_COL_3_IDX)
 
+//configuração do sensor 
+#define TWIHS_ADS1015_ID    ID_TWIHS2
+#define TWIHS_ADS1015       TWIHS2
+
+/************************************************************************/
+/* asd1015                                                              */
+/************************************************************************/
+#define ADS1015_ADDRESS_GND 0x48 //7-bit unshifted default I2C Address
+#define ADS1015_ADDRESS_VDD 0x49
+#define ADS1015_ADDRESS_SDA 0x4A
+#define ADS1015_ADDRESS_SCL 0x4B
+
+#define I2C_SPEED_STANDARD        100000
+#define I2C_SPEED_FAST            400000
+
+//Register addresses
+#define ADS1015_DELAY                (1)
+
+//Pointer Register
+#define ADS1015_POINTER_CONVERT      (0x00)
+#define ADS1015_POINTER_CONFIG       (0x01)
+
+#define ADS1015_CONFIG_OS_NO         (0x8000)
+#define ADS1015_CONFIG_OS_SINGLE     (0x8000)
+#define ADS1015_CONFIG_OS_READY      (0x0000)
+#define ADS1015_CONFIG_OS_NOTREADY   (0x8000)
+
+#define ADS1015_CONFIG_MODE_CONT     (0x0000)
+#define ADS1015_CONFIG_MODE_SINGLE   (0x0100)
+
+#define ADS1015_CONFIG_MUX_SINGLE_0  (0x4000)
+#define ADS1015_CONFIG_MUX_SINGLE_1  (0x5000)
+#define ADS1015_CONFIG_MUX_SINGLE_2  (0x6000)
+#define ADS1015_CONFIG_MUX_SINGLE_3  (0x7000)
+
+#define ADS1015_CONFIG_RATE_128HZ    (0x0000)
+#define ADS1015_CONFIG_RATE_250HZ    (0x0020)
+#define ADS1015_CONFIG_RATE_490HZ    (0x0040)
+#define ADS1015_CONFIG_RATE_920HZ    (0x0060)
+#define ADS1015_CONFIG_RATE_1600HZ   (0x0080)
+#define ADS1015_CONFIG_RATE_2400HZ   (0x00A0)
+#define ADS1015_CONFIG_RATE_3300HZ   (0x00C0)
+
+#define ADS1015_CONFIG_PGA_MASK      (0X0E00)
+#define ADS1015_CONFIG_PGA_2/3       (0X0000)  // +/- 6.144v
+#define ADS1015_CONFIG_PGA_1         (0X0200)  // +/- 4.096v
+#define ADS1015_CONFIG_PGA_2         (0X0400)  // +/- 2.048v
+#define ADS1015_CONFIG_PGA_4         (0X0600)  // +/- 1.024v
+#define ADS1015_CONFIG_PGA_8         (0X0800)  // +/- 0.512v
+#define ADS1015_CONFIG_PGA_16        (0X0A00)  // +/- 0.256v
+
 // usart (bluetooth ou serial)
 // Descomente para enviar dados
 // pela serial debug
@@ -79,11 +157,14 @@
 /* RTOS                                                                 */
 /************************************************************************/
 
-#define TASK_BLUETOOTH_STACK_SIZE            (4096/sizeof(portSTACK_TYPE))
-#define TASK_BLUETOOTH_STACK_PRIORITY        (tskIDLE_PRIORITY)
+#define TASK_BLUETOOTH_STACK_SIZE            (4096*4/sizeof(portSTACK_TYPE))
+#define TASK_BLUETOOTH_STACK_PRIORITY        (tskIDLE_PRIORITY + 1)
 
-#define TASK_TECLADO_STACK_SIZE                (1024*6/sizeof(portSTACK_TYPE))
+#define TASK_TECLADO_STACK_SIZE                (1024*8/sizeof(portSTACK_TYPE))
 #define TASK_TECLADO_STACK_PRIORITY            (tskIDLE_PRIORITY)
+
+#define TASK_LUVA_STACK_SIZE                (1024*8/sizeof(portSTACK_TYPE))
+#define TASK_LUVA_STACK_PRIORITY            (tskIDLE_PRIORITY)
 
 /************************************************************************/
 /* prototypes                                                           */
@@ -109,6 +190,8 @@ extern void xPortSysTickHandler(void);
 /************************************************************************/
 SemaphoreHandle_t xSemaphoreStart;
 QueueHandle_t xQueueTeclado;
+QueueHandle_t xQueueJokempo;
+
 
 /************************************************************************/
 /* prototypes 2                                                         */
@@ -116,6 +199,9 @@ QueueHandle_t xQueueTeclado;
 void start_callback(void);
 void keypad_init();
 char le_keypad();
+void ads1015_i2c_bus_init(void);
+int configSensor(uint8_t channel);
+int readChannel(uint8_t channel, uint8_t *rvalue);
 
 /* Called if stack overflow during execution */
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,
@@ -210,6 +296,94 @@ void keypad_init()
 	
 }
 
+void ads1015_i2c_bus_init(void)
+{
+	twihs_options_t bno055_option;
+	pmc_enable_periph_clk(TWIHS_ADS1015_ID);
+
+	/* Configure the options of TWI driver */
+	bno055_option.master_clk = sysclk_get_cpu_hz();
+	bno055_option.speed      = 40000;
+	twihs_master_init(TWIHS_ADS1015, &bno055_option);
+}
+
+int configSensor(uint8_t channel){
+	twihs_packet_t packet_tx;
+	
+
+	
+	uint16_t config = ADS1015_CONFIG_OS_SINGLE | ADS1015_CONFIG_MODE_CONT | ADS1015_CONFIG_RATE_1600HZ | ADS1015_CONFIG_PGA_1 | ADS1015_CONFIG_MUX_SINGLE_0;
+	//config |= ADS1015_CONFIG_PGA_2/3;
+	
+	switch (channel) {
+		case (0):
+		config |= ADS1015_CONFIG_MUX_SINGLE_0;
+		break;
+		case (1):
+		config |= ADS1015_CONFIG_MUX_SINGLE_1;
+		break;
+		case (2):
+		config |= ADS1015_CONFIG_MUX_SINGLE_2;
+		break;
+		case (3):
+		config |= ADS1015_CONFIG_MUX_SINGLE_3;
+		break;
+	}
+	//config = 0xc080;
+	//config |= ADS1015_CONFIG_MUX_SINGLE_0;
+	
+	char tx[3];
+	tx[0] = ADS1015_POINTER_CONFIG;
+	tx[1] = config >> 8;
+	tx[2] = config & 0xFF;
+	packet_tx.buffer = &tx;
+	packet_tx.length = 3;
+	packet_tx.chip = (uint32_t) ADS1015_ADDRESS_GND;
+	packet_tx.addr[0] = 0;
+	packet_tx.addr_length = 0;
+
+	/* Perform a master write access */
+	if (twihs_master_write(TWIHS2, &packet_tx)){
+		printf("falha na escrita \n");
+	}
+	
+	delay_ms(ADS1015_DELAY);
+}
+
+int readChannel(uint8_t channel, uint8_t *rvalue){
+	twihs_packet_t packet_tx, packet_rx;
+	char tx[32];
+	char rx[32];
+	
+	//tx[0] = ADS1015_POINTER_CONFIG;
+	tx[0] = 0;
+	packet_tx.buffer = &tx;
+	packet_tx.length = 1;
+	packet_tx.chip = (uint32_t) ADS1015_ADDRESS_GND;
+	packet_tx.addr[0] = 0;
+	packet_tx.addr_length = 0;
+	
+	if (twihs_master_write(TWIHS2, &packet_tx)){
+		printf("falha na escrita \n");
+	}
+	
+	packet_rx.buffer = &rx;
+	packet_rx.length = 2;
+	packet_rx.chip = (uint32_t) ADS1015_ADDRESS_GND;
+	packet_rx.addr[0] = 0;
+	packet_rx.addr_length = 0;
+	if (twihs_master_read(TWIHS2, &packet_rx)){
+		printf("falha na leitura \n");
+	}
+	if (twihs_master_read(TWIHS2, &packet_rx)){
+		printf("falha na leitura \n");
+	}
+	if (channel == 0){
+		printf("Channel%u: ", channel);
+		printf("%d  \r\n", (rx[0] << 8 | rx[1]) >> 4);	
+	}
+	
+}
 
 static void configure_console(void) {
 	const usart_serial_options_t uart_serial_options = {
@@ -287,6 +461,8 @@ void config_usart0(void) {
 	pio_configure(PIOB, PIO_PERIPH_C, (1 << 0), PIO_DEFAULT);
 	pio_configure(PIOB, PIO_PERIPH_C, (1 << 1), PIO_DEFAULT);
 }
+
+
 
 int hc05_init(void) {
 	char buffer_rx[128];
@@ -472,6 +648,7 @@ void task_bluetooth(void) {
 	char button1 = '0';
 	char eof = 'X';
 	char rodadas;
+	char jokempo;
 
 	// Task não deve retornar.
 	while(1) {
@@ -494,10 +671,16 @@ void task_bluetooth(void) {
 		}
 		usart_write(USART_COM, eof);
 		
-		vTaskDelay(500 / portTICK_PERIOD_MS);
+		vTaskDelay(100 / portTICK_PERIOD_MS);
 		
 		if(xQueueReceive( xQueueTeclado, &rodadas, 1000)){
 			usart_write(USART_COM, rodadas);
+		}
+		// dorme por 500 ms
+		vTaskDelay(100 / portTICK_PERIOD_MS);
+		
+		if(xQueueReceive( xQueueJokempo, &jokempo, 1000)){
+			usart_write(USART_COM, jokempo);
 		}
 		// dorme por 500 ms
 		vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -517,6 +700,64 @@ void task_teclado (void){
 	}
 }
 
+void task_luva (void){
+	uint8_t bufferRX[100];
+	uint8_t bufferTX[100];
+	
+	uint8_t rtn;
+
+	pmc_enable_periph_clk(ID_PIOD);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 27);
+	
+	printf("Inicializando bus i2c \n");
+	ads1015_i2c_bus_init();
+	
+	while (twihs_probe(TWIHS2, ADS1015_ADDRESS_GND)) {
+		printf("Chip nao encontrado, verifique conexao \n");
+	}
+	printf("Conexao i2c ok, inicializando ADS1015");
+	
+	
+	configSensor(0);
+	configSensor(1);
+	
+	uint16_t d0, d1, old_d0, old_d1;
+	
+	char jokempo;
+	
+	
+	for(;;){
+		old_d0 = d0;
+		old_d1 = d1;
+		
+		configSensor(0);
+		readChannel(0, &d0);
+	
+		
+		//dedo esquerdo
+		configSensor(1);
+		readChannel(1, &d1);
+		
+		if (abs(d0 - old_d0) > 5 || abs(d1 - old_d1) > 5 ){
+			if (d1 > 300){
+				if(d0>300){
+					jokempo = 'R';
+					xQueueSend(xQueueJokempo, &jokempo, 1000);
+				}
+				else{
+					jokempo = 'T';
+					xQueueSend(xQueueJokempo, &jokempo, 1000);
+				}
+			}
+			else{
+				jokempo = 'P';
+				xQueueSend(xQueueJokempo, &jokempo, 1000);
+			}
+		}
+	}
+}
+
 /************************************************************************/
 /* main                                                                 */
 /************************************************************************/
@@ -525,6 +766,10 @@ int main(void) {
 	/* Initialize the SAM system */
 	sysclk_init();
 	board_init();
+	
+	pmc_enable_periph_clk(ID_PIOD);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
+	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 27);
 
 	configure_console();
 	
@@ -539,10 +784,18 @@ int main(void) {
 	if (xQueueTeclado == NULL){
 		printf("falha em criar a queue \n");
 	}
+	
+	
+	xQueueJokempo = xQueueCreate(32, sizeof(char));
+	
+	if (xQueueJokempo == NULL){
+		printf("falha em criar a queue \n");
+	}
 
 	/* Create task to make led blink */
 	xTaskCreate(task_bluetooth, "BLT", TASK_BLUETOOTH_STACK_SIZE, NULL,	TASK_BLUETOOTH_STACK_PRIORITY, NULL);
 	xTaskCreate(task_teclado, "tec", TASK_TECLADO_STACK_SIZE, NULL,	TASK_TECLADO_STACK_PRIORITY, NULL);
+	xTaskCreate(task_luva, "luva", TASK_LUVA_STACK_SIZE, NULL,	TASK_LUVA_STACK_PRIORITY, NULL);
 
 	/* Start the scheduler. */
 	vTaskStartScheduler();
