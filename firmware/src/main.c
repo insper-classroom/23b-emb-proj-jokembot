@@ -201,7 +201,7 @@ void keypad_init();
 char le_keypad();
 void ads1015_i2c_bus_init(void);
 int configSensor(uint8_t channel);
-int readChannel(uint8_t channel, uint8_t *rvalue);
+void readChannel(uint8_t channel, uint8_t *rvalue);
 
 /* Called if stack overflow during execution */
 extern void vApplicationStackOverflowHook(xTaskHandle *pxTask,
@@ -350,7 +350,7 @@ int configSensor(uint8_t channel){
 	delay_ms(ADS1015_DELAY);
 }
 
-int readChannel(uint8_t channel, uint8_t *rvalue){
+void readChannel(uint8_t channel, uint8_t *rvalue){
 	twihs_packet_t packet_tx, packet_rx;
 	char tx[32];
 	char rx[32];
@@ -411,7 +411,7 @@ static void configure_console(void) {
 }
 
 uint32_t usart_puts(uint8_t *pstring) {
-	uint32_t i ;
+	uint32_t i = 0;
 
 	while(*(pstring + i))
 	if(uart_is_tx_empty(USART_COM))
@@ -645,7 +645,7 @@ void task_bluetooth(void) {
 	// configura LEDs e Botões
 	BUT_init();
 
-	char button1 = '0';
+	char button1;
 	char eof = 'X';
 	char rodadas;
 	char jokempo;
@@ -701,11 +701,8 @@ void task_teclado (void){
 }
 
 void task_luva (void){
-	uint8_t bufferRX[100];
-	uint8_t bufferTX[100];
 	
-	uint8_t rtn;
-
+	
 	pmc_enable_periph_clk(ID_PIOD);
 	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
 	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 27);
@@ -722,12 +719,16 @@ void task_luva (void){
 	configSensor(0);
 	configSensor(1);
 	
-	uint16_t d0, d1, old_d0, old_d1;
+	
 	
 	char jokempo;
 	
 	
 	for(;;){
+		uint16_t d0, d1, old_d0, old_d1;
+		d0 = 0;
+		d1 = 0;
+
 		old_d0 = d0;
 		old_d1 = d1;
 		
