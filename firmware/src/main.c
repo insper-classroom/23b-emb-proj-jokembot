@@ -645,7 +645,7 @@ void task_bluetooth(void) {
 	// configura LEDs e Botões
 	BUT_init();
 
-	char button1 = '0';
+	char button1;
 	char eof = 'X';
 	char rodadas;
 	char jokempo;
@@ -704,7 +704,7 @@ void task_luva (void){
 	uint8_t bufferRX[100];
 	uint8_t bufferTX[100];
 	
-	uint8_t rtn;
+	
 
 	pmc_enable_periph_clk(ID_PIOD);
 	pio_set_peripheral(PIOD, PIO_TYPE_PIO_PERIPH_C, 1 << 28);
@@ -722,12 +722,14 @@ void task_luva (void){
 	configSensor(0);
 	configSensor(1);
 	
-	uint16_t d0, d1, old_d0, old_d1;
+	
 	
 	char jokempo;
 	
 	
 	for(;;){
+		uint16_t d0, d1, old_d0, old_d1;
+		
 		old_d0 = d0;
 		old_d1 = d1;
 		
