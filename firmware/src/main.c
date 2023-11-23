@@ -726,11 +726,8 @@ void task_luva (void){
 	
 	for(;;){
 		uint16_t d0, d1, old_d0, old_d1;
-		d0 = 0;
-		d1 = 0;
 
-		old_d0 = d0;
-		old_d1 = d1;
+		
 		
 		configSensor(0);
 		readChannel(0, &d0);
@@ -739,6 +736,9 @@ void task_luva (void){
 		//dedo esquerdo
 		configSensor(1);
 		readChannel(1, &d1);
+		
+		old_d0 = d0;
+		old_d1 = d1;
 		
 		if (abs(d0 - old_d0) > 5 || abs(d1 - old_d1) > 5 ){
 			if (d1 > 300){
